@@ -4,3 +4,16 @@ CHANGES.md
 
 # CLAUDE
 CLAUDE.md
+
+# uv
+# uv.lock はコミットする（改訂版 L795-808 の来歴管理、L233 のバージョン記録）
+.venv/
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Hydra / MLflow の実行時出力
+outputs/
+mlruns/

@@ -62,7 +62,10 @@
 バインディング生成器（展開層） / train/val/test 分割スクリプト / 漏洩検査スクリプト /
 hidden test 生成器 / 解説文レコード（L338 が「残る課題」と明記）
 
-依存は **Python 3.12 標準ライブラリ ＋ pytest のみ**。pydantic は入れない。
+意味AST層のロジック自体は **Python 標準ライブラリだけ**で書く。pydantic は入れない。
+パッケージ管理・設定管理・実験管理には uv / Hydra / MLflow を使う（§11）。
+意味の権威である参照インタプリタと列挙器に外部ライブラリを持ち込まないことが要点であり、
+その周辺（実行の入口、設定、記録）は §11 のツールに任せる。
 
 ---
 
@@ -113,10 +116,13 @@ L413 が要求するとおり `difficulty` ごとに件数を決めて層化抽�
 | 4 | `target − 12,720` | 255,024 から一様抽出 |
 | | **target** | 既定 30,000（1〜3操作 42% / 4操作 58%） |
 
-`--target` で 30,000〜100,000 を指定する。**検証範囲は L397 の帯そのものとし、`30,000 ≤ target ≤ 100,000`
-を外れたら拒否する。** 空間の上限（267,744）ではなく課題文の目安を境界にするのは、帯の外の件数で
-コーパスを作れてしまうと、以降の検算（L424-437）とデータ規模表の対応が黙って崩れるためである。
-`--alloc 24,552,12144,17280` の形で明示指定もできるようにする（合計が `target` と一致することを検証する）。
+`target` は 30,000〜100,000 で指定する（Hydra 設定、§11）。**検証範囲は L397 の帯そのものとし、
+`30,000 ≤ target ≤ 100,000` を外れたら拒否する。** 空間の上限（267,744）ではなく課題文の目安を
+境界にするのは、帯の外の件数でコーパスを作れてしまうと、以降の検算（L424-437）とデータ規模表の
+対応が黙って崩れるためである。
+`alloc=[24,552,12144,17280]` の形で配分の明示指定もできるようにする
+（合計が `target` と一致することを検証する）。この検証は Hydra の設定検証ではなく
+`boku/semantics/enumeration.py` 側で行い、ライブラリに依存しない（§11 の依存の層）。
 
 この帯は `MAX_OPS = 4`（§8 確認事項①で確定）を前提とする。仮に `MAX_OPS` を 3 に下げると
 空間が 12,720 種類しかなく、帯を満たす `target` が存在せず必ずエラーになる。
@@ -458,14 +464,20 @@ boku/
   codegen/__init__.py   # Protocol: emit(ast, binding, style) -> str   ← 今回は宣言のみ
   ja/__init__.py        # Protocol: render(ast, binding, rng) -> str    ← 今回は宣言のみ
 probes/behavior_probe_set_v1.jsonl
+conf/                   # Hydra の設定（§11）。boku/ 側はこれを知らない
+  config.yaml           #   target / seed / alloc / out / drop_behavior_duplicates
+  probe_set.yaml        #   probe_set.version / 境界値・ランダムの件数 / 上限256
 docs/
   canonical_forms.md
   open_questions.md
   dev_ai_usage.md
 scripts/
-  build_probe_set.py
+  build_probe_set.py    # Hydra と MLflow を触るのはこの層だけ（§11）
   build_ast_corpus.py
 tests/
+pyproject.toml          # 依存を [project] と [dependency-groups] dev に分ける（§11）
+uv.lock                 # コミットする。来歴管理（L795-808）に効く
+.python-version         # 3.12
 ```
 
 `run(ast, xs, k)` は入力 `xs` を複製し破壊的変更をしない。
@@ -547,6 +559,7 @@ L314「difficultyが3以上の指示文は特に注意して承認すること�
 | `test_stratified_alloc.py` | 既定 target 30,000 で配分が 24 / 552 / 12,144 / 17,280。difficulty 1〜3 が全数。同一seedで再現。target が範囲外なら拒否 |
 | `test_op_frequency.py` | 既定配分でのop出現頻度が一様から一定範囲内（§2.2 の構成的一様性の確認） |
 | `test_no_teacher_in_semantics.py` | 全レコードが `source == "rule"` |
+| `test_core_has_no_external_deps.py` | §11 の依存の層を固定する。`boku/semantics/` `boku/interp/` `boku/probes/` の全モジュールの import 文を走査し、標準ライブラリと `boku.*` 以外を import していないこと（`hydra`・`mlflow` が意味の権威側に染み出さないための歯止め）。走査には標準の `ast` を使う——この検査自体が §5 の「モジュール名で標準ライブラリを隠さない」判断の受益者である |
 | `test_hash_excludes_timestamp.py` | `created_at` を差し替えても各ハッシュと `ast_id` が不変 |
 | `test_golden_example.py` | L163-169 の問題例。`["ge", "double", "asc"]` の参照インタプリタ出力が掲載コード `sorted([x * 2 for x in xs if x >= k])` とランダム入力1,000件で完全一致 |
 
@@ -610,16 +623,19 @@ L314「difficultyが3以上の指示文は特に注意して承認すること�
 
 ## 9. 検証手順
 
+実行はすべて `uv run` を通す。設定の上書きは Hydra 記法（`key=value`）である（§11）。
+
 ```powershell
 # 1. 全テスト
-pytest -q
+uv run pytest -q
 
 # 2. 固定入力集合を生成して凍結
-python -m scripts.build_probe_set --version v1
+uv run python -m scripts.build_probe_set probe_set.version=v1
 #    → 単一op 24個の behavior_hash が全て相異なるまで自動で増やし、件数を報告
 
 # 3. AST コーパスを構築（既定）
-python -m scripts.build_ast_corpus --target 30000 --seed 0
+uv run python -m scripts.build_ast_corpus target=30000 seed=0
+#    → MLflow に1 runとして記録される（params / metrics / manifest.json は §11）
 ```
 
 期待される出力：
@@ -637,20 +653,22 @@ python -m scripts.build_ast_corpus --target 30000 --seed 0
 
 ```powershell
 # 4. 目標件数の上限側
-python -m scripts.build_ast_corpus --target 100000 --seed 0
+uv run python -m scripts.build_ast_corpus target=100000 seed=0
 #    → difficulty 4 の抽出が 87,280 件になること
 
 # 5. 意味重複を除去した場合との比較（L816 の研究課題の条件）
-python -m scripts.build_ast_corpus --target 30000 --drop-behavior-duplicates --seed 0
+uv run python -m scripts.build_ast_corpus target=30000 drop_behavior_duplicates=true seed=0
 #    → 除去件数を報告。既定 off との差分が可換対と縮退の総量になる
+#    → MLflow 上で 手順3 の run と並べて差分を読む（§11）
 
 # 6. 再現性
-python -m scripts.build_ast_corpus --target 30000 --seed 0 --out data/ast/asts_rerun.jsonl
+uv run python -m scripts.build_ast_corpus target=30000 seed=0 out=data/ast/asts_rerun.jsonl
 #    → created_at 以外が完全一致すること
+#    → 相対パスが Hydra の作業ディレクトリに逃げないこと（§11 の注意2）
 
 # 7. 目標件数の帯の外は拒否されること（§2.2）
-python -m scripts.build_ast_corpus --target 20000 --seed 0
-python -m scripts.build_ast_corpus --target 150000 --seed 0
+uv run python -m scripts.build_ast_corpus target=20000 seed=0
+uv run python -m scripts.build_ast_corpus target=150000 seed=0
 #    → いずれも L397 の 30,000〜100,000 を外れるためエラーで停止すること
 ```
 
@@ -675,3 +693,77 @@ difficulty 4 が全体の58%を占め、そこが日本語生成の難所（順�
 | トークナイザ（Phase 2） | 出力値の最大桁数を `manifest.json` に記録。リテラルは 1〜10 の10種に限定されている |
 | 比較実験（L709-723） | `MAX_OPS` / `target` / `drop_behavior_duplicates` / `registry_version` をレコードとマニフェストに記録 |
 | 順序多様性のアブレーション | `canonical_order` フィールド |
+
+---
+
+## 11. ツールと実験管理（uv / Hydra / MLflow）
+
+2026-07-30 に決定。三つの役割を分けて使う。
+
+| ツール | 役割 | 導入時期 |
+| --- | --- | --- |
+| **uv** | Python本体とパッケージの管理、実行の入口 | いま |
+| **Hydra** | スクリプトの設定管理（`target` / `seed` / `alloc` など） | ASTコーパス構築スクリプトから |
+| **MLflow** | 実行の記録と比較実験 | ASTコーパス構築から（学習指標は Phase 4） |
+
+課題文はこれらを禁じていない。L181 の「NumPy、Pandasなどの外部ライブラリ」は`## 対象外の要素`
+にある記述で、**生成する `solve` 関数が使ってはいけないもの**を指す。パイプラインの実装については
+L71 が既存部品の利用を許しており、L233（推論ライブラリのバージョン）・L236（seed）・
+L762（再現可能な機械学習実験）・L795-808（来歴管理）はむしろ実験管理の導入を後押しする。
+
+### 依存の層を分ける
+
+**意味の権威に外部ライブラリを持ち込まない。**これが唯一の制約である。
+
+| 層 | 許す依存 |
+| --- | --- |
+| `boku/semantics/` `boku/interp/` `boku/probes/` | **標準ライブラリのみ** |
+| `scripts/` | ＋ `hydra-core`（`omegaconf`）、`mlflow` |
+| `tests/` | ＋ `pytest` |
+
+参照インタプリタは意味の唯一の権威（§2.7）であり、`OP_REGISTRY` は意味を持たないデータ（§2.8）
+である。ここに設定ライブラリや実験管理の都合が混ざると、監査の対象が「手書きの退屈なコード」
+から「ライブラリの挙動込み」に広がる。Hydra と MLflow を触るのは `scripts/` の入口だけとし、
+`boku/` 側は素の引数を受け取る関数のままにする。この境界はテストで固定する（§7）。
+
+### uv
+
+- **Python を 3.12 に固定する。**`.python-version` に `3.12` を書き、`uv python install 3.12` で用意する。
+  現状この機械には 3.13 と 3.14 しかなく計画（3.12）とずれているが、uv 導入でこのずれが消える
+- 実行は `uv run` を通す（`uv run pytest -q`）。§9 のコマンドもこの形にした
+- **`uv.lock` をコミットする。**L795-808 の来歴管理と L233 のバージョン記録に直接効く
+- 依存は `pyproject.toml` の `[project] dependencies`（実行時）と
+  `[dependency-groups] dev`（pytest など）に分ける
+
+### Hydra
+
+設定を `conf/` の YAML に出し、スクリプトの入口を Hydra 経由にする。実装時に踏む注意が2点ある。
+
+1. **CLI記法が変わる。**`--target 30000 --seed 0` は Hydra では `target=30000 seed=0` になる。
+   §9 の検証手順はこの記法に書き換えてある
+2. **Hydra は既定で作業ディレクトリを変える**（`outputs/YYYY-MM-DD/HH-MM-SS/`）。
+   `data/ast/asts.jsonl` のような相対パスが意図しない場所に出る。`hydra.job.chdir=False` を
+   明示するか、パスを `hydra.utils.get_original_cwd()` 起点で解決すること
+
+`--alloc 24,552,12144,17280`（§2.2）のようなリスト引数は、YAML 側では素のリストで持ち、
+CLI からの上書きは `alloc=[24,552,12144,17280]` の形になる。
+
+### MLflow
+
+ASTコーパス構築を1 run として記録する。`manifest.json` に出す項目（§4）がそのまま params と
+metrics になる。
+
+- **params**：`target` / `seed` / `MAX_OPS` / `registry_version` / `probe_set_version` /
+  `generator_version` / `drop_behavior_duplicates`
+- **metrics**：difficulty別の実件数 / op出現頻度の偏り / `behavior_hash` の異なり数と
+  最大衝突グループ長 / `always_empty`・`is_identity` の件数 / `k`参照スロット数の分布 /
+  出力値の絶対値の最大桁数
+- **artifacts**：`manifest.json`、`probes/behavior_probe_set_v1.jsonl`
+
+これは L709-723 の比較実験と L816「意味重複を残す場合と除去する場合の比較」にそのまま使える。
+§9 手順5（`drop_behavior_duplicates=true`）は既定 off の run との差分として読める。
+Phase 4 では L682-692 の評価指標を同じ tracking に載せる。
+
+**`manifest.json` は MLflow に載せても残す。** MLflow のストアはツールの都合で移動・消去され得るが、
+`manifest.json` はコーパスと同じ場所に置かれた由来の記録であり、L795-808 が求めているのはそちら。
+**MLflow は閲覧と比較のための索引であって、由来の正本ではない。**
