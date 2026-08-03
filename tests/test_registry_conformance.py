@@ -10,6 +10,7 @@
 
 import pytest
 
+from boku.interp.ops import OP_IMPLS
 from boku.semantics.registry import (
     CATEGORY_ORDER,
     MAX_OPS,
@@ -194,13 +195,23 @@ def test_op_spec_holds_nothing_callable() -> None:
             assert not callable(value), (name, field)
 
 
-@pytest.mark.skip(reason="interp/ops.py は次のチャンクで実装する（実装計画 §5, §2.8）")
 def test_every_op_has_an_interp_implementation() -> None:
     """全opに参照インタプリタの実装が存在し、逆も真（実装計画 §7）。
 
     レジストリと参照インタプリタを同期させる唯一のテストであり、意味を共有しない代償として
-    必ず要る。`boku/interp/ops.py` の実装後に有効化する。
+    必ず要る。ここが検査するのは**存在と形式だけ**で、意味が合っているかは見ない
+    （実装計画 §2.8）。意味の検査は `test_interp_ops.py` の担当。
     """
-    from boku.interp import ops  # noqa: PLC0415
+    assert set(OP_IMPLS) == set(OP_REGISTRY)
 
-    assert set(ops.OP_IMPLS) == set(OP_REGISTRY)
+
+def test_interp_impls_are_callable_with_the_uniform_signature() -> None:
+    """全opの実装が `(xs, k)` の同じシグネチャで呼べる（実装計画 §5）。
+
+    `uses_k` で呼び分けないという規約を固定する。呼び分けを導入すると、参照インタプリタが
+    レジストリのメタデータに実行時依存してしまい、改訂版 L281-286 の独立性を損なう。
+    """
+    for name, impl in OP_IMPLS.items():
+        assert callable(impl), name
+        result = impl([1, 2, 3], 2)
+        assert isinstance(result, list), name

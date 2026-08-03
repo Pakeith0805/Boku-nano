@@ -553,6 +553,7 @@ L314「difficultyが3以上の指示文は特に注意して承認すること�
 | `test_uniform_literal_domain.py` | 全267,744ASTで `uniform_literal_domain` が各スロット値域の共通部分と一致。**空になるASTが1件も無く、最小サイズが7**。`[ge, multiple_of, mul_k]` が `{4..10}`。`k` 参照opを持たないASTは `[]`。`k`参照スロット数の分布が 26,404 / 93,110 / 102,150 / 41,040 / 5,040 |
 | `test_literal_binding_equivalence.py` | 一様具体化の等価性（§2.4）。`uniform_literal_domain` の各 `v` について、全スロットを `v` に固定した評価が `run(ast, xs, v)` と一致する。**混在バインディングが一致しない**ことも反例で示し、制約が本物であることを固定する |
 | `test_interp_ops.py` | op別の単体テスト。負数・0・空リスト・`k > len(xs)`・重複値を必ず含む |
+| `test_interp_differential.py` | **意味を意図的に違う原理でもう一度書き、全数比較する。**（剰余の代わりにビット検査、`sorted` の代わりに最小値の繰り返し取り出し、スライスの代わりに添字ループ、乗算の代わりに加算の繰り返し）。L281-286 の差分ランダムテストは相手のコード生成器がスコープ外のため成立せず、`test_interp_ops.py` は期待値と実装を同じ人間が書くので思い違いが両方に同じ形で入り込む。原理を変えた実装ならその思い違いを共有しにくい。**コード生成器の実装後は、そちらが本来の差分テストを担うのでこのファイルの役割は補助に下がる** |
 | `test_probe_discriminates.py` | 単一opのAST 24 個の `behavior_hash` が全て相異なる |
 | `test_known_collisions.py` | 既知の可換対と縮退が同一 `behavior_hash` になる：`[even, positive]`/`[positive, even]`、`[even, desc]`/`[desc, even]`、`[double, triple]`/`[triple, double]`、`[square, abs]`/`[square]`（L529-534 の全例） |
 | `test_no_mutation.py` | `run()` が入力 `xs` を変更しない |
