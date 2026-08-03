@@ -555,8 +555,62 @@ is_identity                2（[add_k, sub_k] と [sub_k, add_k]）
   標準ライブラリと `boku` 以外を import していないことを確認する。
   `hydra` / `mlflow` は名指しでも弾いている
 
+### #10 下流のフックと文書 — 完了（2026-08-03）
+
+実装しない層の**受け口だけ**を宣言し、記録を残す。
+
+**作ったもの**
+
+| ファイル | 内容 |
+| --- | --- |
+| `boku/codegen/__init__.py` | `CodeGenerator.emit(ast, binding, style)` の Protocol |
+| `boku/ja/__init__.py` | `InstructionRenderer.render(ast, binding, rng)` の Protocol |
+| `docs/canonical_forms.md` | コード→ASTパーサ向けの正準形の宣言 |
+| `docs/open_questions.md` | 課題文の解釈12件と、分割段への申し送り |
+| `docs/dev_ai_usage.md` | 開発支援AIの使用範囲（改訂版 L808） |
+| `tests/test_protocol_hooks.py` | 宣言と文書の検査 |
+
+**テスト**：537 passed（10.4s）。
+
+**設計**
+
+- **`Binding = int | None` で一様具体化を型として表した。**`None` がパラメータ版、
+  `int` が「全スロットを同じ値に具体化した」リテラル版。**スロットごとに別の値を持つ形は
+  型として書けない。**改訂版 L269 の検証等価性を守るための制約（§2.4）を、
+  展開層が破れないようにしている
+- `canonical_forms.md` の冒頭に「往復はASTの同一性としては閉じない」を明記した（§2.6 の要求）。
+  `x * 2` をパースすると `double` になり、`mul_k` をリテラル2に具体化したものでも戻らない。
+  将来パーサを書くときの受け入れ条件は**意味的等価性**
+- レジストリの `shadows` と `canonical_forms.md` の対応表が食い違わないことをテストで固定した
+
 ---
 
-## Phase 1 前半の完了状況
+## Phase 1 前半：完了
 
-RUNBOOK #1〜#9 が完了。残るのは #10（`codegen` / `ja` の Protocol 宣言と `docs/` 3点）。
+**RUNBOOK #1〜#10 がすべて完了。**
+
+```
+uv run pytest -q                                        537 passed
+uv run python -m scripts.build_probe_set                 82件の固定入力集合
+uv run python -m scripts.build_ast_corpus target=30000   30,000件のコーパス
+```
+
+`document_AST.md` §9 の検証手順1〜7 をすべて実行し、期待される出力と一致している。
+
+### この工程で計画書に反映した発見
+
+実装しながら見つけて、`document_AST.md` を直した点。
+
+| 内容 | 影響 |
+| --- | --- |
+| `odd` の正規形の根拠が誤り（C/Javaの挙動をPythonに当てはめていた） | 根拠を訂正 |
+| `ast.py` が標準ライブラリの `ast` を隠す | `semantic_ast.py` に改名 |
+| リテラル具体化の一様性制約が未記載 | §2.4 に明記、`uniform_literal_domain` を追加 |
+| 固定入力集合の受け入れ条件が複合ASTで不十分（偽の衝突30件） | 条件を2段階にし反例駆動で解消 |
+
+### 次の工程への申し送り
+
+- **`behavior_hash` の衝突に 78.8% のASTが関与する。**分割設計でテスト集合がどれだけ削れるか
+  見積もること（`docs/open_questions.md`）
+- **`always_empty` が 18.3%。**選抜段で扱いを決めること
+- **出力の絶対値は最大7桁。**Phase 2 のトークナイザ設計（語彙4,096）に効く

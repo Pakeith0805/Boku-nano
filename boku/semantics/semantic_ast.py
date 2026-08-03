@@ -226,6 +226,36 @@ class SemanticAST:
                 )
         return ast
 
+    def is_valid_binding(self, binding: "Binding") -> bool:
+        """バインディングが §2.4 の一様具体化の制約を満たすか。
+
+        許すのは2形態だけである。
+
+        1. `None`（パラメータ版）：全スロットを `k` のまま残す
+        2. `uniform_literal_domain` の要素（リテラル版）：全スロットを同じ値に具体化する
+
+        スロットごとに別の値を入れる形は、そもそも `Binding` の型として表現できない。
+        表現できてしまうと、展開層が改訂版 L269 の検証等価性を壊すコードを作れてしまう。
+        """
+        if binding is None:
+            return True
+        return binding in self.uniform_literal_domain
+
     def __str__(self) -> str:
         """`[ge, double, asc]` の形。ログと失敗メッセージ用。"""
         return "[" + ", ".join(self.ops) + "]"
+
+
+Binding = int | None
+"""リテラル具体化のバインディング（実装計画 §2.4 のフック）。
+
+- `None` … パラメータ版。全スロットが `k` を参照したまま。任意の `k` で検証できる
+- `int` … リテラル版。**全スロットを同じ値に具体化する。**検証は `k = その値` で行う
+
+**スロットごとに別の値を持てない形にしてある。**改訂版 L269 の検証等価性が成立するのは
+一様に具体化した場合だけであり、混在させるとどの `k` での参照インタプリタ評価とも一致しなくなる。
+型で表現できないようにすることが、展開層（今回スコープ外）への最も強い申し送りになる。
+
+値の選び方は `SemanticAST.uniform_literal_domain`（各スロット値域の共通部分）に従う。
+`SemanticAST.is_valid_binding` が検査する。
+"""

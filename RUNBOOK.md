@@ -35,7 +35,7 @@ uv run python --version              # 3.12.13 であること
 | 7 ✅ | `semantics/enumeration.py` | `test_stratified_alloc.py` `test_op_frequency.py` | #3 #4 |
 | 8 ✅ | `semantics/corpus.py` | `test_corpus_roundtrip.py`（`asts.jsonl` / `manifest.json`） | #3 #6 |
 | 9 ✅ | `scripts/build_ast_corpus.py` `conf/config.yaml` ＋ MLflow | `test_no_teacher_in_semantics.py` `test_core_has_no_external_deps.py` | 全部 |
-| 10 | `codegen/` `ja/` の Protocol、`docs/*.md` | 宣言のみ（実装しない） | — |
+| 10 ✅ | `codegen/` `ja/` の Protocol、`docs/*.md` | `test_protocol_hooks.py`（宣言のみ、実装しない） | — |
 
 ### 順序の理由
 
@@ -54,6 +54,9 @@ uv run python --version              # 3.12.13 であること
    `document_AST.md` の数値と一致することを確認する
 4. **止めて、確認を取る。** 計画に書かれていなかった判断があれば列挙して報告する
 5. 承認後、`README.md` の「実装状況」に追記する
+
+**#1〜#10 完了（2026-08-03）。** Phase 1 前半は終わり。次は Phase 1 後半
+（コード生成器・日本語生成器・展開層）から。
 
 ## 通し検証（#9 完了後）
 
