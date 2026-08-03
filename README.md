@@ -153,7 +153,52 @@ k-slot分布: {0: 26404, 1: 93110, 2: 102150, 3: 41040, 4: 5040}
 - **`square` は `x * x`、`reverse` は `list(xs[::-1])`。**`op_` を全関数の接頭辞にして
   組み込み `abs` の遮蔽を避けた
 
-### #3 SemanticAST と構造検証 — 未着手
+### #3 SemanticAST と構造検証 — 完了（2026-07-30）
 
-次のチャンク。`semantic_ast.py` `validate.py` `schema.json` と、
-`uniform_literal_domain`（§2.4 の一様具体化）の実装。
+意味ASTのデータ構造と、構造検証の3項目。
+
+**作ったもの**
+
+| ファイル | 内容 |
+| --- | --- |
+| `boku/semantics/semantic_ast.py` | `SemanticAST`、`BindingSlot`、`SCHEMA_VERSION` |
+| `boku/semantics/validate.py` | 構造検証（`problems` / `is_valid` / `validate`） |
+| `boku/semantics/schema.json` | `document_AST.md` §4 のレコード形式の JSON Schema |
+| `tests/test_ast_roundtrip.py` | 直列化と派生値 |
+| `tests/test_validate.py` | 検証3項目と、**やらないこと**の固定 |
+| `tests/test_uniform_literal_domain.py` | 全267,744ASTの共通部分を全数検査 |
+| `tests/test_literal_binding_equivalence.py` | 一様具体化の等価性と反例 |
+
+**テスト**：336 passed（2.8s）。
+
+**独立検証**：意味AST空間 267,744件を全数回し、`uniform_literal_domain` が各スロット値域の
+積集合と一致すること、空にならず最小7値であること、`k`参照スロット数の分布が
+26,404 / 93,110 / 102,150 / 41,040 / 5,040 であることを確認した。
+`document_AST.md` §2.4 の数値と全件一致。
+
+**設計**
+
+- `SemanticAST` は **op列から一意に決まる値だけ**を持つ。評価が要る値（`behavior_hash`、
+  `always_empty`、`is_identity`）は #6、採番と由来（`ast_id`、`created_at`、各version）は #8
+- **構造検証はしない。**不正な列でも構築できる。そうしないと検証器自体をテストできない
+- `from_dict` は `semantic_ast` だけを読んで派生値を再計算し、レコード側の派生値と
+  食い違えば `ValueError`。レジストリ改訂後に古いコーパスを読んだことに気づける
+- `canonical_json` はop列だけ。派生値も `created_at` も入れない
+
+**この工程で分かったこと（計画に追記した）**
+
+混在バインディングが検証不能になるかは**ASTごとに違い、事前には分からない**。実測すると
+`[ge, take_first]` は混在の58%、`[multiple_of, mul_k]` は100%が検証不能だが、
+**`[gt, ge]` は0%**——どの混在も一様版で再現できてしまう
+（`gt@a → ge@b` は `x > max(a, b-1)` に畳めるため）。
+
+安全なASTも実在するが、判定にはバインディング空間の全探索が要る。
+267,744件について毎回それをやる代わりに「全スロット同一値」で済ませている、というのが
+§2.4 の制約の本当の理由。両方の実例をテストに固定し、`document_AST.md` §2.4 にも追記した。
+
+なおこの発見は、最初に書いたテストが失敗したことから出てきた。原因は実装ではなく、
+「全ての複数スロットASTに検証不能な混在が存在する」という**私のテストの主張が強すぎた**こと。
+
+### #4 unrank による列挙 — 未着手
+
+次のチャンク。下降階乗基数での順位付け。`unrank(r, i)` / `rank(ops)` / `count(r)`。
