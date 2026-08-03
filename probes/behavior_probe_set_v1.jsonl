@@ -1,0 +1,70 @@
+{"index":0,"xs":[],"k":1,"kind":"boundary","probe_set_version":"v1","note":"空リスト・k下限（L102の長さ下限0は正当な入力）"}
+{"index":1,"xs":[],"k":10,"kind":"boundary","probe_set_version":"v1","note":"空リスト・k上限"}
+{"index":2,"xs":[0],"k":1,"kind":"boundary","probe_set_version":"v1","note":"長さ1・ゼロのみ・k=1（lt と negative を分ける）"}
+{"index":3,"xs":[0,0,0],"k":5,"kind":"boundary","probe_set_version":"v1","note":"全ゼロ・長さ3"}
+{"index":4,"xs":[5],"k":5,"kind":"boundary","probe_set_version":"v1","note":"長さ1・x==k（gt と ge を分ける）・len(xs) < k"}
+{"index":5,"xs":[1,2],"k":2,"kind":"boundary","probe_set_version":"v1","note":"長さ2・x==k・len(xs) == k"}
+{"index":6,"xs":[-1,-2,-3],"k":1,"kind":"boundary","probe_set_version":"v1","note":"全負・長さ3・k=1"}
+{"index":7,"xs":[1,2,3],"k":3,"kind":"boundary","probe_set_version":"v1","note":"全正・x==k・len(xs) == k"}
+{"index":8,"xs":[7,7,7,7,7],"k":7,"kind":"boundary","probe_set_version":"v1","note":"重複値・長さ5・x==k・len(xs) < k"}
+{"index":9,"xs":[-100,100],"k":10,"kind":"boundary","probe_set_version":"v1","note":"要素の境界（L103の±100）・長さ2"}
+{"index":10,"xs":[-100,-50,0,50,100],"k":5,"kind":"boundary","probe_set_version":"v1","note":"正負混在＋ゼロ・長さ5"}
+{"index":11,"xs":[5,1,9,3],"k":2,"kind":"boundary","probe_set_version":"v1","note":"未整列（asc・desc・reverse を分ける）"}
+{"index":12,"xs":[2,4,6,8,10],"k":2,"kind":"boundary","probe_set_version":"v1","note":"全偶数・k=2（multiple_of が even と一致する側）"}
+{"index":13,"xs":[3,6,9,12],"k":3,"kind":"boundary","probe_set_version":"v1","note":"3の倍数・k=3（mul_k が triple と一致する側）"}
+{"index":14,"xs":[1,2,3,4,5,6,7,8,9,10],"k":7,"kind":"boundary","probe_set_version":"v1","note":"k=7（multiple_of と even を分ける）・len(xs) > k"}
+{"index":15,"xs":[0,1,-1],"k":1,"kind":"boundary","probe_set_version":"v1","note":"k=1・ゼロ含む（lt と negative を分ける）"}
+{"index":16,"xs":[4,8,12,16],"k":4,"kind":"boundary","probe_set_version":"v1","note":"k=4（mul_k と double/triple を分ける、k∉{2,3}）"}
+{"index":17,"xs":[1,2,3],"k":9,"kind":"boundary","probe_set_version":"v1","note":"len(xs) < k・k=9"}
+{"index":18,"xs":[-5,-4,-3,-2,-1],"k":6,"kind":"boundary","probe_set_version":"v1","note":"全負・len(xs) < k・k=6"}
+{"index":19,"xs":[10,20,30,40,50,60,70,80,90,100,-10,-20,-30,-40,-50,-60,-70,-80,-90,-100],"k":8,"kind":"boundary","probe_set_version":"v1","note":"長さ20（L102の上限）・len(xs) > k・k=8"}
+{"index":20,"xs":[-56,-35,36,-57,-92,87,44,2,43,51,-85,-56,38,-16,45,51,28,19,-9],"k":2,"kind":"random","probe_set_version":"v1"}
+{"index":21,"xs":[-37,93,-25,-8,-50,-43,3,80,-29,-38,-83,77,-84,22,-3,0],"k":4,"kind":"random","probe_set_version":"v1"}
+{"index":22,"xs":[1,73,81,24,37,68,13,-89,94,-12,-75,79,-69],"k":3,"kind":"random","probe_set_version":"v1"}
+{"index":23,"xs":[-38,-34,-10,49,25,-69,-53,-31],"k":1,"kind":"random","probe_set_version":"v1"}
+{"index":24,"xs":[53,62,84,72,61,-82,24,-6,69,79,10],"k":2,"kind":"random","probe_set_version":"v1"}
+{"index":25,"xs":[-20,86,17,-2,-15,-43,48,58,35,2,-89],"k":10,"kind":"random","probe_set_version":"v1"}
+{"index":26,"xs":[76,-32,-29,0,97,-49,1,28,2,-43,53,89,99,-28,11,60,61,-36,-1],"k":2,"kind":"random","probe_set_version":"v1"}
+{"index":27,"xs":[-98,19,62,-75],"k":4,"kind":"random","probe_set_version":"v1"}
+{"index":28,"xs":[29,-71,97,-72,22,77,-65,55,51,21,85,-100],"k":5,"kind":"random","probe_set_version":"v1"}
+{"index":29,"xs":[54,-30,67,-73,-3,13,16,-18,-51,77,-19,-29,10,-41],"k":8,"kind":"random","probe_set_version":"v1"}
+{"index":30,"xs":[55,-23,87,-72,30,-16,-76,-75,31,-95,-81,20],"k":6,"kind":"random","probe_set_version":"v1"}
+{"index":31,"xs":[-11,-76,-63,-71,-10,1,72,-15,-89],"k":6,"kind":"random","probe_set_version":"v1"}
+{"index":32,"xs":[88,77,-56],"k":1,"kind":"random","probe_set_version":"v1"}
+{"index":33,"xs":[71,-88,81,32,-8,36],"k":10,"kind":"random","probe_set_version":"v1"}
+{"index":34,"xs":[15,-58,86],"k":6,"kind":"random","probe_set_version":"v1"}
+{"index":35,"xs":[-34,-41,-77,83,-59,-25,85,80,9,-69,-42,-77],"k":10,"kind":"random","probe_set_version":"v1"}
+{"index":36,"xs":[-17,-86,-86,-15,0,-87,-18,46,83,-18,-40,-78,1,-26,-51,4,65],"k":9,"kind":"random","probe_set_version":"v1"}
+{"index":37,"xs":[63,72],"k":5,"kind":"random","probe_set_version":"v1"}
+{"index":38,"xs":[29,-47,43,-67,-18,-55,26,-27,57,27,56,-43,4,-5,-8],"k":3,"kind":"random","probe_set_version":"v1"}
+{"index":39,"xs":[-18,-66,-63],"k":3,"kind":"random","probe_set_version":"v1"}
+{"index":40,"xs":[-46,17,88,-51,-47,-62,47,-77,-79,-10,50,37,2,-49,10,80],"k":2,"kind":"random","probe_set_version":"v1"}
+{"index":41,"xs":[],"k":9,"kind":"random","probe_set_version":"v1"}
+{"index":42,"xs":[-12,-58],"k":8,"kind":"random","probe_set_version":"v1"}
+{"index":43,"xs":[49,-33,81,100],"k":10,"kind":"random","probe_set_version":"v1"}
+{"index":44,"xs":[4,7,-34,-16,88,-11,-1,-97,-94,55,-23,-100,-83,-68,-69,13,-85,-100,-46,-87],"k":8,"kind":"random","probe_set_version":"v1"}
+{"index":45,"xs":[-64,81,-90],"k":3,"kind":"random","probe_set_version":"v1"}
+{"index":46,"xs":[54,7,-45,-95,41,82,-100,3,38,-3],"k":6,"kind":"random","probe_set_version":"v1"}
+{"index":47,"xs":[48,-21,45,26,37,84],"k":4,"kind":"random","probe_set_version":"v1"}
+{"index":48,"xs":[76,5,47,-32],"k":4,"kind":"random","probe_set_version":"v1"}
+{"index":49,"xs":[41,94,6,45,73,56,-100],"k":2,"kind":"random","probe_set_version":"v1"}
+{"index":50,"xs":[60,38,95,0],"k":7,"kind":"random","probe_set_version":"v1"}
+{"index":51,"xs":[61,56],"k":7,"kind":"random","probe_set_version":"v1"}
+{"index":52,"xs":[74,30,-78,-15,-78,-2,-91,8,-71,19,39,-10,-50,2,-9],"k":9,"kind":"random","probe_set_version":"v1"}
+{"index":53,"xs":[-67,31,-24,53,68,-86,-11,-6,-38,-13,-71,56,-11,67,-79],"k":1,"kind":"random","probe_set_version":"v1"}
+{"index":54,"xs":[-77,20,-76,-20,1,85,5,78,-60,97,99],"k":8,"kind":"random","probe_set_version":"v1"}
+{"index":55,"xs":[-51,40,-55,24,-7,-30,-91,-59,-71,3,-97,0,-55,56,-4,-25,27,-99,0,18],"k":1,"kind":"random","probe_set_version":"v1"}
+{"index":56,"xs":[-3,92,-55,-72,-34,-81],"k":3,"kind":"random","probe_set_version":"v1"}
+{"index":57,"xs":[-13,81],"k":7,"kind":"random","probe_set_version":"v1"}
+{"index":58,"xs":[-93,12,-4,81,92,-50,5,-99,-70,82,94,64],"k":2,"kind":"random","probe_set_version":"v1"}
+{"index":59,"xs":[-66,77,-97],"k":5,"kind":"random","probe_set_version":"v1"}
+{"index":60,"xs":[-62,34,27,16,-50,94,-74,77,65,-22,0,-44,2],"k":9,"kind":"random","probe_set_version":"v1"}
+{"index":61,"xs":[93,-23,-92,-100],"k":6,"kind":"random","probe_set_version":"v1"}
+{"index":62,"xs":[16,57,-1,66,25,-27,43,-75,47,56],"k":3,"kind":"random","probe_set_version":"v1"}
+{"index":63,"xs":[92,-23,53,42,90,87,-4,-29,1,-79,-22,0,-63,51,95],"k":4,"kind":"random","probe_set_version":"v1"}
+{"index":64,"xs":[-67,75,81,80,-68,72,-19],"k":3,"kind":"random","probe_set_version":"v1"}
+{"index":65,"xs":[-92,92,-51,54,-89,-68,43,37,-5,76,59,-43],"k":3,"kind":"random","probe_set_version":"v1"}
+{"index":66,"xs":[-93,43,32,67,21],"k":6,"kind":"random","probe_set_version":"v1"}
+{"index":67,"xs":[60,21],"k":6,"kind":"random","probe_set_version":"v1"}
+{"index":68,"xs":[-28,-39,-71,71,-38,36,-95,-81,62,-91,62,-85],"k":6,"kind":"random","probe_set_version":"v1"}
+{"index":69,"xs":[-79,-5,65,46,-36,-99,-15,57,-16,40,-98,-98],"k":8,"kind":"random","probe_set_version":"v1"}

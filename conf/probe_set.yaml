@@ -1,0 +1,35 @@
+# behavior_hash 用の固定入力集合の設定（実装計画 §2.5, §11）
+#
+#   uv run python -m scripts.build_probe_set probe_set.version=v1
+#
+# この設定ファイルが seed の記録そのものになる。凍結した入力集合を再現するには
+# ここの値が要る（実装計画 §3「固定入力集合は専用の固定シードを使う」）。
+
+probe_set:
+  version: v1
+
+  # 固定入力集合専用の乱数の名前空間（実装計画 §3）。
+  # 将来の hidden test 生成器は別の種を使い、同じ入力を引かないようにする。
+  seed: 20260730
+
+  # 最初に足す乱数の件数（改訂版 L536 の「ランダム50件」）。
+  # 識別力が足りなければ、単一op24個が分かれるまで自動で増える。
+  random_count: 50
+
+  # 全体の上限（実装計画 §2.5）。
+  max_probes: 256
+
+  # 出力先。リポジトリのルートからの相対パス。
+  out: probes/behavior_probe_set_v1.jsonl
+
+  # 凍結済みファイルを上書きするか。既定では内容が変わる上書きを拒否する。
+  force: false
+
+hydra:
+  # 既定では outputs/YYYY-MM-DD/HH-MM-SS/ に作業ディレクトリを移してしまい、
+  # 相対パスが意図しない場所に出る（実装計画 §11 の注意2）。無効にする。
+  job:
+    chdir: false
+  run:
+    dir: .
+  output_subdir: null

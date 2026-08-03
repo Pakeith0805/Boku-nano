@@ -30,7 +30,7 @@ uv run python --version              # 3.12.13 であること
 | 2 ✅ | `interp/ops.py` `interp/run.py` `limits.py` | `test_interp_ops.py` `test_interp_differential.py` `test_no_mutation.py` `test_golden_example.py` `test_limits.py` ＋ #1 のskip解除 | #1 |
 | 3 ✅ | `semantics/semantic_ast.py` `validate.py` `schema.json` | `test_ast_roundtrip.py` `test_validate.py` `test_uniform_literal_domain.py` `test_literal_binding_equivalence.py` | #1 #2 |
 | 4 ✅ | `semantics/unrank.py` | `test_unrank.py` | #1 |
-| 5 | `probes/behavior_probes.py` `scripts/build_probe_set.py` | `test_probe_discriminates.py` | #2 |
+| 5 ✅ | `probes/behavior_probes.py` `scripts/build_probe_set.py` `conf/probe_set.yaml` | `test_probe_discriminates.py` | #2 |
 | 6 | `semantics/fingerprint.py` | `test_known_collisions.py` `test_hash_excludes_timestamp.py` | #2 #3 #5 |
 | 7 | `semantics/enumeration.py` | `test_stratified_alloc.py` `test_op_frequency.py` | #3 #4 |
 | 8 | `semantics/corpus.py` | ラウンドトリップ（`asts.jsonl` / `manifest.json`） | #3 #6 |
