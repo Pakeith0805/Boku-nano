@@ -1,0 +1,80 @@
+{
+  "created_at": "2026-08-03T11:28:15Z",
+  "generator_version": "v0.1",
+  "registry_version": "ops24-v1",
+  "probe_set_version": "v1",
+  "schema_version": 1,
+  "seed": 0,
+  "target": 30000,
+  "max_ops": 4,
+  "space_total": 267744,
+  "probe_count": 82,
+  "drop_behavior_duplicates": true,
+  "record_count": 10464,
+  "allocation": {
+    "planned": {
+      "1": 24,
+      "2": 552,
+      "3": 12144,
+      "4": 17280
+    },
+    "actual": {
+      "1": 24,
+      "2": 335,
+      "3": 3598,
+      "4": 6507
+    }
+  },
+  "op_frequency": {
+    "abs": 1339,
+    "add_k": 2122,
+    "asc": 1445,
+    "desc": 1483,
+    "double": 1842,
+    "even": 1657,
+    "every_other": 2395,
+    "ge": 1275,
+    "gt": 1208,
+    "le": 1528,
+    "lt": 1343,
+    "mul_k": 1928,
+    "multiple_of": 1710,
+    "negate": 1580,
+    "negative": 864,
+    "odd": 1662,
+    "positive": 1068,
+    "reverse": 1283,
+    "square": 1895,
+    "sub_k": 1963,
+    "take_first": 1894,
+    "take_last": 1945,
+    "triple": 1974,
+    "zero": 113
+  },
+  "category_frequency": {
+    "filter": 12428,
+    "map": 14643,
+    "order": 4211,
+    "slice": 6234
+  },
+  "canonical_order_ratio": 0.188838,
+  "k_slot_distribution": {
+    "0": 826,
+    "1": 3911,
+    "2": 4268,
+    "3": 1367,
+    "4": 92
+  },
+  "uniform_literal_domain_min": 7,
+  "behavior_hash": {
+    "distinct": 10464,
+    "collision_groups": 0,
+    "largest_group": 1,
+    "asts_in_collisions": 0
+  },
+  "always_empty_count": 1,
+  "is_identity_count": 1,
+  "max_output_abs_digits": 7,
+  "op_frequency_max_deviation": 0.927711,
+  "dropped_behavior_duplicates": 19536
+}

@@ -34,7 +34,7 @@ uv run python --version              # 3.12.13 であること
 | 6 ✅ | `semantics/fingerprint.py` | `test_known_collisions.py` `test_hash_excludes_timestamp.py` | #2 #3 #5 |
 | 7 ✅ | `semantics/enumeration.py` | `test_stratified_alloc.py` `test_op_frequency.py` | #3 #4 |
 | 8 ✅ | `semantics/corpus.py` | `test_corpus_roundtrip.py`（`asts.jsonl` / `manifest.json`） | #3 #6 |
-| 9 | `scripts/build_ast_corpus.py` `conf/*.yaml` ＋ MLflow | `test_no_teacher_in_semantics.py` `test_core_has_no_external_deps.py` | 全部 |
+| 9 ✅ | `scripts/build_ast_corpus.py` `conf/config.yaml` ＋ MLflow | `test_no_teacher_in_semantics.py` `test_core_has_no_external_deps.py` | 全部 |
 | 10 | `codegen/` `ja/` の Protocol、`docs/*.md` | 宣言のみ（実装しない） | — |
 
 ### 順序の理由

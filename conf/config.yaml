@@ -1,0 +1,46 @@
+# ASTコーパス構築の設定（実装計画 §9, §11）
+#
+#   uv run python -m scripts.build_ast_corpus target=30000 seed=0
+#
+# 目標件数は改訂版 L397 の帯（30,000〜100,000）に収める。帯の外は enumeration.py が拒否する
+# （検証は Hydra ではなくそちらに置いてある。実装計画 §11 の依存の層）。
+
+# 生成する意味ASTの件数（改訂版 L397）。
+target: 30000
+
+# 層化抽出の乱数の種。difficulty ごとに独立した名前空間へ派生させる。
+seed: 0
+
+# difficulty ごとの件数を明示指定する場合に使う（例: [24, 552, 12144, 17280]）。
+# null なら target から既定配分を作る（1〜3操作は全数、残りを difficulty 4 から抽出）。
+alloc: null
+
+# 出力先。リポジトリのルートからの相対パス。
+out: data/ast/asts.jsonl
+manifest_out: data/ast/manifest.json
+
+# 使用する固定入力集合の版（#5 で凍結したもの）。
+probe_set_version: v1
+
+# 同じ behavior_hash のレコードを間引くか。
+# **既定は off**（実装計画 §2.5）。改訂版 L536 は分割後の漏洩検査で処理すると定めており、
+# 構築時に前倒しすると層化配分の「全数」と目標件数が崩れる。
+# true にするのは L816「意味重複を残す場合と除去する場合の比較」を回すときだけ。
+drop_behavior_duplicates: false
+
+mlflow:
+  # 実験記録（実装計画 §11）。off にしても manifest.json は必ず残る。
+  # MLflow は閲覧と比較のための索引であって、由来の正本ではない。
+  enabled: true
+  experiment: boku-nano-ast
+  # null ならカレントディレクトリの ./mlruns を使う。
+  tracking_uri: null
+
+hydra:
+  # 既定では outputs/YYYY-MM-DD/HH-MM-SS/ に作業ディレクトリを移してしまい、
+  # data/ast/... のような相対パスが意図しない場所に出る（実装計画 §11 の注意2）。
+  job:
+    chdir: false
+  run:
+    dir: .
+  output_subdir: null

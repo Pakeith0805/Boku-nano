@@ -140,6 +140,45 @@ def build_records(
     return records, max_digits
 
 
+def renumber_records(records: Sequence[dict[str, Any]]) -> list[dict[str, Any]]:
+    """`ast_id` を1から振り直す。
+
+    重複除去などでレコードを間引いた後に使う。番号が飛んだままだと
+    `schema.json` の連番の意味が崩れる。**`ast_id` は実行をまたぐキーではない**ので、
+    振り直しても他の記録との対応は壊れない（またぐときは `semantic_hash` を使う）。
+    """
+    return [
+        {**record, "ast_id": format_ast_id(number)}
+        for number, record in enumerate(records, start=1)
+    ]
+
+
+def drop_behavior_duplicates(
+    records: Sequence[dict[str, Any]],
+) -> tuple[list[dict[str, Any]], int]:
+    """同じ `behavior_hash` のレコードを最初の1件だけ残す。
+
+    **既定では使わない**（実装計画 §2.5）。改訂版 L536 は「重複が見つかった場合は、
+    テスト側のレコードを除外する」と定めており、処理する場所は**分割後の漏洩検査**であって
+    コーパス構築時ではない。構築時に前倒しすると L416-421 の層化配分の「全数」が崩れ、
+    L397 の目標件数も意図せず減る。
+
+    この関数は改訂版 L816「意味重複を残す場合と除去する場合の比較」を実験条件として
+    回すためにある（実装計画 §9 手順5）。
+
+    Returns:
+        `(残ったレコード, 除去した件数)`。`ast_id` は振り直す。
+    """
+    seen: set[str] = set()
+    kept: list[dict[str, Any]] = []
+    for record in records:
+        if record["behavior_hash"] in seen:
+            continue
+        seen.add(record["behavior_hash"])
+        kept.append(record)
+    return renumber_records(kept), len(records) - len(kept)
+
+
 def write_records(path: Path, records: Iterable[dict[str, Any]]) -> None:
     """JSONL で書き出す（1行1レコード）。"""
     path.parent.mkdir(parents=True, exist_ok=True)

@@ -17,3 +17,18 @@ __pycache__/
 # Hydra / MLflow の実行時出力
 outputs/
 mlruns/
+mlflow.db
+*.log
+
+# 生成したコーパス（seed と conf から再現できるので追跡しない。合計約49MB）
+#   uv run python -m scripts.build_ast_corpus target=30000 seed=0
+data/ast/*.jsonl
+
+# ただし manifest.json は追跡する。
+# コーパスに添えられた由来の記録であり、改訂版 L795-808 が求めているのはこちら。
+# MLflow は閲覧と比較のための索引であって、由来の正本ではない（実装計画 §11）。
+!data/ast/manifest*.json
+
+# 固定入力集合は追跡する。behavior_hash の基準であり、
+# これが変わると全レコードのハッシュが変わるため（実装計画 §2.5）。
+!probes/*.jsonl
