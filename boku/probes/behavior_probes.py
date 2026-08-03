@@ -201,19 +201,136 @@ def build_probe_set(
     return probes
 
 
-def save_probe_set(path: Path, probes: Sequence[ProbeInput], version: str) -> None:
+EXTERNAL_SEED_OFFSET: Final[int] = 1
+"""検証用の外部入力に使う種のずらし幅（実装計画 §3 の名前空間分離）。
+
+固定入力集合そのものとは別の種を使う。同じ種で引くと、検証に使う入力が入力集合と
+重なって「自分で自分を検証する」ことになる。
+"""
+
+
+def external_inputs(
+    count: int, seed: int, exclude: Sequence[ProbeInput]
+) -> list[ProbeInput]:
+    """入力集合に**含まれない**ランダムな `(xs, k)` を作る。
+
+    偽の衝突（固定入力集合では同じ指紋なのに、実際は別の関数）を探すために使う。
+    入力集合の外から見ないと、識別力の不足そのものが見えない。
+    """
+    rng = random.Random(seed + EXTERNAL_SEED_OFFSET)
+    excluded = set(exclude)
+    found: list[ProbeInput] = []
+    while len(found) < count:
+        candidate = random_input(rng)
+        if candidate not in excluded:
+            found.append(candidate)
+    return found
+
+
+def find_false_collisions(
+    op_sequences: Sequence[Sequence[str]],
+    probes: Sequence[ProbeInput],
+    external: Sequence[ProbeInput],
+    limit: int | None = None,
+) -> list[tuple[tuple[str, ...], tuple[str, ...], ProbeInput]]:
+    """偽の衝突を探す。
+
+    入力集合の上では出力列が一致するのに、`external` のどれかで食い違うASTの組を返す。
+    3つ目の要素が**それを分ける入力**であり、そのまま入力集合に足せば次からは分かれる。
+
+    ## なぜ要るのか
+
+    実装計画 §2.5 の受け入れ条件は「単一opのAST 24個が全て相異なる」だが、
+    **これは複合ASTの識別力を保証しない。**実測すると、単一opの条件を満たす70件の入力集合でも
+    difficulty 3 で29件の偽の衝突が出た。
+
+    偽の衝突があると、改訂版 L536 の漏洩検査で「重複」と判定されたテスト側レコードが
+    実際には重複でないのに除外される。漏洩する方向ではないので危険ではないが、
+    テスト集合が理由なく削れる。
+    """
+    groups: dict[tuple[tuple[int, ...], ...], list[tuple[str, ...]]] = {}
+    for ops in op_sequences:
+        groups.setdefault(probe_outputs(ops, probes), []).append(tuple(ops))
+
+    found: list[tuple[tuple[str, ...], tuple[str, ...], ProbeInput]] = []
+    for members in groups.values():
+        if len(members) < 2:
+            continue
+        base = members[0]
+        for other in members[1:]:
+            for xs, k in external:
+                if run(base, xs, k) != run(other, xs, k):
+                    found.append((base, other, (xs, k)))
+                    break
+        if limit is not None and len(found) >= limit:
+            break
+    return found
+
+
+def grow_until_no_false_collisions(
+    probes: Sequence[ProbeInput],
+    op_sequences: Sequence[Sequence[str]],
+    external: Sequence[ProbeInput],
+    max_probes: int = MAX_PROBES,
+    max_rounds: int = 50,
+) -> list[ProbeInput]:
+    """偽の衝突がなくなるまで、**反例そのもの**を入力集合に足す。
+
+    見つかった食い違いの入力を足せば、次の回ではその組が分かれる。実測では
+    difficulty 1〜3 の 12,720件に対して 70件 → 83件（3巡）で収束した。
+
+    Returns:
+        育てた入力集合。元の並びは保ち、追加分を末尾に足す。
+
+    Raises:
+        RuntimeError: 上限または巡回数の上限に達しても収束しないとき。
+
+    Note:
+        **これは経験的な基準であって証明ではない。**「`external` の範囲では区別できた」
+        までしか言えない。difficulty 4 は 255,024件あり全数検証は現実的でないので、
+        そこは未検証のまま残る（実装計画 §2.5 に明記）。
+    """
+    grown = list(probes)
+    for _ in range(max_rounds):
+        found = find_false_collisions(op_sequences, grown, external)
+        if not found:
+            return grown
+        for _, _, probe in found:
+            if probe not in grown:
+                if len(grown) >= max_probes:
+                    raise RuntimeError(
+                        f"上限 {max_probes} 件でも偽の衝突が消えない（残り {len(found)} 件）"
+                    )
+                grown.append(probe)
+    raise RuntimeError(f"{max_rounds} 巡しても偽の衝突が消えない")
+
+
+def save_probe_set(
+    path: Path,
+    probes: Sequence[ProbeInput],
+    version: str,
+    random_count: int = DEFAULT_RANDOM_COUNT,
+) -> None:
     """入力集合を JSONL で保存する（1行1件）。
 
     境界値には意図の説明を添える。後から「なぜこの入力が要るのか」を追えるようにするため。
+    `kind` は3種類で、並びは boundary → random → counterexample の順になる。
+    `counterexample` は `grow_until_no_false_collisions` が偽の衝突を潰すために足した入力。
     """
     notes = boundary_notes()
     lines = []
     for index, (xs, k) in enumerate(probes):
+        if index < len(notes):
+            kind = "boundary"
+        elif index < len(notes) + random_count:
+            kind = "random"
+        else:
+            kind = "counterexample"
         record: dict[str, object] = {
             "index": index,
             "xs": list(xs),
             "k": k,
-            "kind": "boundary" if index < len(notes) else "random",
+            "kind": kind,
             "probe_set_version": version,
         }
         if index < len(notes):

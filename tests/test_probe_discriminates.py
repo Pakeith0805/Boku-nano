@@ -8,6 +8,8 @@
 生成器ではなく**実際に使う入力集合**を見ないと意味がない。
 """
 
+import random
+from itertools import permutations
 from pathlib import Path
 
 import pytest
@@ -19,6 +21,8 @@ from boku.probes.behavior_probes import (
     build_probe_set,
     default_probe_set_path,
     describe,
+    external_inputs,
+    find_false_collisions,
     indistinguishable_pairs,
     load_probe_inputs,
     load_probe_set,
@@ -140,12 +144,69 @@ def test_build_is_deterministic() -> None:
     first = build_probe_set(seed=20260730)
     second = build_probe_set(seed=20260730)
     assert first == second
-    assert first == PROBES, "凍結ファイルが conf/probe_set.yaml の種と対応していない"
+
+
+def test_frozen_set_starts_with_the_seeded_base() -> None:
+    """凍結ファイルの先頭70件が `conf/probe_set.yaml` の種から再現できる。
+
+    残りは偽の衝突を潰すために足した反例なので、種だけからは決まらない
+    （どのASTの組が食い違うかに依存する）。
+    """
+    base = build_probe_set(seed=20260730)
+    assert PROBES[: len(base)] == base, (
+        "凍結ファイルが conf/probe_set.yaml の種と対応していない"
+    )
 
 
 def test_different_seed_gives_different_set() -> None:
     """種が違えば入力集合も違う（種が効いていることの確認）。"""
     assert build_probe_set(seed=999) != PROBES
+
+
+def test_no_false_collisions_at_difficulty_1_and_2() -> None:
+    """difficulty 1〜2 の576件に偽の衝突がない。
+
+    偽の衝突とは、固定入力集合では同じ指紋なのに**実際は別の関数**である組のこと。
+    改訂版 L536 の漏洩検査で、重複でないテスト側レコードが除外されてしまう。
+
+    difficulty 3 の全数（12,144件）検証は時間がかかるので
+    `scripts/build_probe_set.py` の担当。ここは回帰検出のための軽い版。
+    """
+    op_sequences = [
+        ops for r in (1, 2) for ops in permutations(OP_NAMES, r)
+    ]
+    external = external_inputs(count=2000, seed=20260730, exclude=PROBES)
+    assert find_false_collisions(op_sequences, PROBES, external) == []
+
+
+def test_no_false_collisions_on_a_difficulty_3_sample() -> None:
+    """difficulty 3 の抽出2,000件に偽の衝突がない。
+
+    偽の衝突30件が実際に見つかったのは difficulty 3 だった。全数は
+    `scripts/build_probe_set.py` に任せ、ここは決定的な抽出で回帰を捕まえる。
+    """
+    all_d3 = list(permutations(OP_NAMES, 3))
+    rng = random.Random(4242)
+    sample = rng.sample(all_d3, 2000)
+    external = external_inputs(count=2000, seed=20260730, exclude=PROBES)
+    assert find_false_collisions(sample, PROBES, external) == []
+
+
+def test_external_inputs_are_disjoint_from_the_probe_set() -> None:
+    """検証用の外部入力が固定入力集合と重ならない（実装計画 §3 の名前空間分離）。
+
+    重なると「自分で自分を検証する」ことになり、識別力の不足が見えない。
+    """
+    external = external_inputs(count=500, seed=20260730, exclude=PROBES)
+    assert set(external).isdisjoint(set(PROBES))
+
+
+def test_counterexample_probes_are_present() -> None:
+    """反例駆動で足した入力が凍結ファイルに残っている。
+
+    境界値20 + 乱数50 の70件を超えていれば、偽の衝突を潰す段が働いた証拠。
+    """
+    assert len(PROBES) > 70, "反例が1件も足されていない"
 
 
 def test_load_probe_inputs_returns_a_set() -> None:

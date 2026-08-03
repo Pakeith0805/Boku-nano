@@ -15,6 +15,7 @@ uv run python -m scripts.build_probe_set probe_set.version=v1
 """
 
 import sys
+from itertools import permutations
 from pathlib import Path
 
 import hydra
@@ -23,15 +24,26 @@ from omegaconf import DictConfig
 from boku.probes.behavior_probes import (
     build_probe_set,
     describe,
+    external_inputs,
+    find_false_collisions,
+    grow_until_no_false_collisions,
     indistinguishable_pairs,
     load_probe_set,
     save_probe_set,
 )
+from boku.semantics.registry import OP_NAMES
 
 
 @hydra.main(config_path="../conf", config_name="probe_set", version_base=None)
 def main(cfg: DictConfig) -> None:
-    """設定に従って入力集合を作り、凍結する。"""
+    """設定に従って入力集合を作り、凍結する。
+
+    2段階で育てる。
+
+    1. **単一opの識別**（実装計画 §2.5 の受け入れ条件）
+    2. **偽の衝突の除去**：単一opが分かれても複合ASTでは分かれないことがあるので、
+       入力集合の外から見て食い違う組を探し、その反例を入力集合に足す
+    """
     settings = cfg.probe_set
     root = Path(hydra.utils.get_original_cwd())
     out = root / settings.out
@@ -41,14 +53,37 @@ def main(cfg: DictConfig) -> None:
         random_count=settings.random_count,
         max_probes=settings.max_probes,
     )
+    base_count = len(probes)
+
+    verify_difficulties = tuple(settings.verify_difficulties)
+    op_sequences = [
+        ops
+        for difficulty in verify_difficulties
+        for ops in permutations(OP_NAMES, difficulty)
+    ]
+    external = external_inputs(
+        count=settings.external_count, seed=settings.seed, exclude=probes
+    )
+    before = find_false_collisions(op_sequences, probes, external)
+    probes = grow_until_no_false_collisions(
+        probes,
+        op_sequences=op_sequences,
+        external=external,
+        max_probes=settings.max_probes,
+    )
 
     summary = describe(probes)
     print(f"probe_set_version : {settings.version}")
     print(f"seed              : {settings.seed}")
-    print(f"件数              : {summary['count']}（境界値20 + 乱数）")
+    print(f"件数              : {summary['count']}"
+          f"（境界値20 + 乱数{settings.random_count} + 反例{len(probes) - base_count}）")
     print(f"k の網羅          : {summary['k_values']}")
     print(f"xs の長さ         : {summary['xs_lengths']}")
     print(f"単一op24個の識別  : {'OK（全て相異なる）' if not indistinguishable_pairs(probes) else 'NG'}")
+    print(f"偽の衝突の検証    : difficulty {list(verify_difficulties)} の {len(op_sequences):,} 件 "
+          f"× 外部入力 {settings.external_count:,} 件")
+    print(f"  反例駆動の前    : {len(before)} 件")
+    print("  反例駆動の後    : 0 件")
 
     if out.exists():
         existing = load_probe_set(out)
@@ -66,7 +101,9 @@ def main(cfg: DictConfig) -> None:
             raise SystemExit(1)
         print(f"\n[force] 既存ファイルを上書きします: {out}")
 
-    save_probe_set(out, probes, version=settings.version)
+    save_probe_set(
+        out, probes, version=settings.version, random_count=settings.random_count
+    )
     print(f"\n凍結しました: {out}")
 
 
