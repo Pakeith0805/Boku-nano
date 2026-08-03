@@ -436,6 +436,62 @@ difficulty 4    17,280 種類（255,024 種類から一様抽出）
 - `MAX_OPS` を 3 に下げると空間が 12,720件になり、帯を満たす `target` が存在せず必ず失敗する。
   意図した safety net（§2.2）
 
-### #8 コーパスの読み書き — 未着手
+### #8 コーパスの読み書き — 完了（2026-07-30）
 
-次のチャンク。`corpus.py`。`asts.jsonl` と `manifest.json`、`ast_id` の採番。
+`asts.jsonl` と `manifest.json`。レコードは**3つの層の合成**。
+
+| 層 | 出どころ | 何を足すか |
+| --- | --- | --- |
+| op列から決まる値 | `SemanticAST.to_dict()`（#3） | `semantic_ast` `difficulty` `binding_slots` など |
+| 評価しないと決まらない値 | `Fingerprint.to_dict()`（#6） | `semantic_hash` `behavior_hash` `always_empty` `is_identity` |
+| コーパスに載せて決まる値 | `corpus.py`（#8） | `ast_id` と由来3項目、各 version |
+
+**作ったもの**
+
+| ファイル | 内容 |
+| --- | --- |
+| `boku/semantics/corpus.py` | レコード組み立て、`manifest.json`、JSONL の読み書き |
+| `tests/test_corpus_roundtrip.py` | 往復・採番・由来・要約の検査 |
+
+**テスト**：499 passed（10.3s）。
+
+**独立検証**：difficulty 1〜2 の全576件で実際にコーパスを作り、往復と統計を確認した。
+
+```
+出力の最大桁数        : 7          ← Phase 2 への申し送り
+behavior_hash 異なり数: 359 / 576
+  衝突グループ        : 147
+  最大グループ        : 27
+  衝突に関与          : 364（63%）
+always_empty          : 27
+is_identity           : 2
+op頻度                : 全op 47回ちょうど（厳密一様）
+カテゴリ頻度          : filter 470 : map 376 : order 141 : slice 141
+往復                  : OK（jsonl 1件あたり 638 bytes、30,000件で約18MB）
+```
+
+**分かったこと**
+
+- **出力の絶対値は最大7桁に達する。**`mul_k`（×10）のあと `square` で 1,000,000 になる。
+  改訂版 L105 が範囲超過を許しているとおりで、Phase 2 のトークナイザ設計（語彙4,096）に
+  効くので `manifest.json` に記録する（`document_AST.md` §6）
+- **difficulty 2 の63%が衝突グループに入る。**最大グループ27件は `always_empty` の群
+  （出力が全て空列なので当然すべて同じ指紋になる）
+- **`is_identity` は `[add_k, sub_k]` と `[sub_k, add_k]` の2件。**`k` を足して引くので
+  恒等になる。構造的には正当（同一opの重複なし）だが `solve(xs, k)` が `xs` をそのまま返す。
+  **除去せず記録**し、判断は選抜段に委ねる（§2.5、§8 確認事項⑦のとおり）
+
+**設計**
+
+- 指紋の算出はコーパス構築で最も重い（AST数 × 入力数の評価）。**1つのASTにつき評価は一度だけ**にして、
+  そこから指紋と出力桁数の両方を得る
+- `manifest.json` の値は**レコードから数える**。二重に持つと食い違う余地ができるため、
+  外から受け取るのは `max_output_digits` だけ（出力自体はレコードに載らない）
+- `ast_id` は6桁連番（`ast-000001`）。目標件数の上限100,000を表せる。
+  **実行をまたぐキーではない**（配分や種を変えると振り直される）。またぐときは `semantic_hash`
+- `created_at` を差し替えてもハッシュと `ast_id` が変わらないことをテストで固定した
+
+### #9 コーパス構築スクリプト — 未着手
+
+次のチャンク。`scripts/build_ast_corpus.py` と `conf/config.yaml`、MLflow 連携。
+`document_AST.md` §9 の手順1〜7 を通しで実行する。
