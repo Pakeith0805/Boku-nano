@@ -1,7 +1,13 @@
-# RUNBOOK — `document_AST.md` の実装手順
+# RUNBOOK — 実装手順
 
-`document_AST.md`（Phase 1 前半の実装計画）を**どの順に実装するか**だけを書いた手順書。
-設計の根拠は `document_AST.md` に、仕様の根拠は改訂版の課題文にある。ここでは順番と検証だけを扱う。
+実装計画を**どの順に実装するか**だけを書いた手順書。
+設計の根拠は各実装計画に、仕様の根拠は改訂版の課題文にある。ここでは順番と検証だけを扱う。
+
+| 範囲 | 実装計画 | 手順 |
+| --- | --- | --- |
+| Phase 1 前半（意味AST層・参照インタプリタ） | `document_AST.md` | #1〜#10（完了） |
+| Phase 1 後半(1)（分割・漏洩検査） | `document_SPLIT.md` | #11〜#13 |
+| Phase 1 後半(2)（展開・生成器・選抜） | `document_EXPAND.md` | #14〜#20 |
 
 ## 前提（一度だけ）
 
@@ -55,8 +61,7 @@ uv run python --version              # 3.12.13 であること
 4. **止めて、確認を取る。** 計画に書かれていなかった判断があれば列挙して報告する
 5. 承認後、`README.md` の「実装状況」に追記する
 
-**#1〜#10 完了（2026-08-03）。** Phase 1 前半は終わり。次は Phase 1 後半
-（コード生成器・日本語生成器・展開層）から。
+**#1〜#10 完了（2026-08-03）。** Phase 1 前半は終わり。
 
 ## 通し検証（#9 完了後）
 
@@ -69,3 +74,59 @@ uv run python -m scripts.build_ast_corpus target=30000 seed=0
 ```
 
 配分が **24 / 552 / 12,144 / 17,280**（合計 30,000）になることが最初の関門。
+
+---
+
+# Phase 1 後半
+
+## 着手前の判断（2026-08-04 決着済み）
+
+**`target` を 30,000 → 45,000 に上げた**（`conf/config.yaml`）。改訂版 L424-437 の検算は分割を
+無視して全数に20例を掛けているが、L465 は分割してから展開すると定めているため、
+`target=30,000` では訓練集合がデータ規模の3つの帯すべてを下回っていた。45,000 は
+3 epoch で3帯すべてを満たす最小値である。副作用として difficulty 4 の比率が 57.6% → 71.7% に
+上がるが、これは受け入れて記録する（`document_EXPAND.md` §1）。
+
+コーパスは再生成済み（45,000件）。以降の件数はすべてこの前提。
+
+## 実装の順序
+
+**依存関係の順に並べてある。**上から順に、1チャンクごとに止めて確認を取る。
+
+| # | 作るもの | 完了条件（テスト） | 依存 | 計画 |
+| --: | --- | --- | --- | --- |
+| 11 | `boku/split/reserve.py` `partition.py` | `test_reserve_pairs.py` `test_partition_strata.py` | #8 | SPLIT §2.2-2.4 |
+| 12 | `boku/split/leakage.py`（第1・3・5項） | `test_leakage_checks.py` | #11 | SPLIT §2.6 |
+| 13 | `boku/split/manifest.py` `scripts/build_splits.py` `conf/split.yaml` | `test_split_manifest_roundtrip.py` `test_split_reproducible.py` | #12 | SPLIT §3 §6 |
+| 14 | `boku/expand/binding.py` | `test_binding_expansion.py` | #13 | EXPAND §2.1 |
+| 15 | `boku/codegen/emit.py` `styles.py` | `test_codegen_differential.py` `test_codegen_independence.py` `test_code_styles.py` | #14 | EXPAND §2.3-2.5 |
+| 16 | `scripts/teacher/generate_phrases.py` ＋ 承認CLI | 承認済み辞書が op あたり15表現以上 | — | EXPAND §2.7 §2.8 |
+| 17 | `boku/ja/render.py` `phrasebook.py` | `test_ja_order_markers.py` `test_ja_no_duplicate_instruction.py` `test_phrasebook_split.py` | #16 | EXPAND §2.6 §2.2 |
+| 18 | 解説文レコード（生成＋承認） | `test_dataset_schema.py` | #16 | EXPAND §2.9 |
+| 19 | `boku/verify/checks.py` `select.py` | `test_verify_checks.py` | #15 #17 | EXPAND §2.11 §2.12 |
+| 20 | `scripts/build_dataset.py` ＋ 漏洩検査 段2 | `test_leakage_stage2.py` | 全部 | EXPAND §2.12 §5 |
+
+### 順序の理由
+
+- **#11〜#13 が先。** L465 が「日本語文やコードを生成する前に分割する」と定めている。
+  逆順にすると同じ問題の表記違いが訓練とテストに入る
+- **#15 を #17 より前に置く。** コード生成器は参照インタプリタとの差分テストで正しさを測れるが、
+  日本語生成器を機械的に検証する相手はいない。**先に測れる方を固める**
+- **#16 に人間が入る。** 教師モデルの生成と承認は自動化しない（L288-295）。
+  ここだけリードタイムが読めないので、#14 #15 と並行して着手してよい
+- **#16 の着手条件は解消済み**（2026-08-04、再起動で `nvidia-smi` が復旧）。
+  GPU は RTX 5090・32,607 MiB・compute capability 12.0（sm_120）。
+  ただし**推論スタックが sm_120 に対応しているかを、辞書生成の本番前に1プロンプトで確かめる**
+  （AWQ カーネルは世代依存。EXPAND §2.7）。GPU は他プロセスと共有している
+- **#20 が最後。** Hydra と MLflow を触るのはこの層だけ
+
+### 各チャンクの手順（前半と同じ）
+
+1. 実装する
+2. `uv run pytest -q` が通ることを確認する
+3. 計画の数値に関わるチャンク（#11 #12 #14 #19）は、テストとは別に独立検算を回して
+   実装計画の数値と一致することを確認する
+4. **止めて、確認を取る。** 計画に書かれていなかった判断があれば列挙して報告する
+5. 承認後、`README.md` の「実装状況」に追記する
+
+コミットは**人間がする。**

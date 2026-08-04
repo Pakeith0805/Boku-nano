@@ -1,7 +1,8 @@
 """ASTコーパスを構築する（実装計画 §9 手順3）。
 
 ```powershell
-uv run python -m scripts.build_ast_corpus target=30000 seed=0
+uv run python -m scripts.build_ast_corpus seed=0            # conf の既定 target=45,000
+uv run python -m scripts.build_ast_corpus target=30000 seed=0  # 明示指定
 ```
 
 意味AST層の総仕上げにあたる。列挙（#7）→ 構造検証（#3）→ 指紋（#6）→ レコード化（#8）を

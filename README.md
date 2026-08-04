@@ -39,6 +39,17 @@ uv run pytest -q
 | `scripts/` | ＋ `hydra-core`、`mlflow` |
 | `tests/` | ＋ `pytest` |
 
+Phase 1 前半までは GPU を使わない。Phase 1 後半の教師モデル（`Qwen/Qwen3-4B-AWQ`）以降で使う。
+
+| | |
+| --- | --- |
+| GPU | NVIDIA GeForce RTX 5090 / 32,607 MiB |
+| ドライバ / CUDA | 595.84 / 13.2 |
+| compute capability | 12.0（sm_120、Blackwell） |
+
+**推論スタックと学習ライブラリが sm_120 に対応した版であることを確認してから使う**
+（`document_EXPAND.md` §2.7）。GPU は他プロセスと共有している。
+
 ## ディレクトリ
 
 ```

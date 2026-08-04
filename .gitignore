@@ -20,8 +20,8 @@ mlruns/
 mlflow.db
 *.log
 
-# 生成したコーパス（seed と conf から再現できるので追跡しない。合計約49MB）
-#   uv run python -m scripts.build_ast_corpus target=30000 seed=0
+# 生成したコーパス（seed と conf から再現できるので追跡しない）
+#   uv run python -m scripts.build_ast_corpus seed=0   （target は conf/config.yaml の 45,000）
 data/ast/*.jsonl
 
 # ただし manifest.json は追跡する。
