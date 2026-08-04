@@ -357,11 +357,58 @@ L215 は AWQ 版を「第一候補」としており排他ではない。VRAM �
 - `tests/test_core_has_no_external_deps.py` の境界は変更しない
 - `tests/test_no_teacher_in_semantics.py`（意味ASTの `source` が全件 `"rule"`）も変更しない
 
-#### 生成の手順
+#### 16a：実行環境の構築（辞書生成とは別のチャンクにする）
+
+**2026-08-04 時点で何も入っていない。**`.venv` に torch・transformers・vLLM はいずれも無く、
+Qwen の重みも取得していない（HFキャッシュには他プロジェクトのモデルがあるだけ）。
+
+環境構築を辞書生成（16b）と分けるのは、**失敗のしかたが違う**からである。ここで外れるとしたら
+sm_120 対応であり、辞書の中身とは無関係である。混ざっていると「AWQカーネルが動かない」のか
+「プロンプトが悪い」のかの切り分けに手間がかかる。
+
+##### 推論ライブラリの選択
+
+用途は「24opぶんのプロンプトを1回ずつ、非thinkingモードで流す」だけで、**スループットは要らない。**
+
+| 候補 | 評価 |
+| --- | --- |
+| **transformers + autoawq** | **第一候補。**依存が軽く、挙動が追いやすい。ただし autoawq が sm_120 のカーネルを持つかは実際に入れて確かめる |
+| vLLM | 速いが依存が重く、Blackwell 対応は版による。この用途では速度の利点が効かない |
+
+##### 手順
 
 ```bash
+# 1. 依存を入れる（teacher グループ）
 uv sync --group teacher
 
+# 2. sm_120 のビルドが入っているか
+uv run --group teacher python -c "
+import torch; print(torch.__version__, torch.cuda.get_device_capability())"
+#    → (12, 0) が出ること
+
+# 3. 重みを取得（AWQ版で約3GB）
+#    → 回線待ちがあるので先に済ませる
+
+# 4. 疎通確認：1プロンプトだけ生成して日本語が返ること
+#    → ここで AWQ カーネルが sm_120 で動くかが判明する
+#    → 思考ブロックが出力されていないことも目視で確認する（L240、非thinkingモード）
+
+# 5. 使った版と量子化方式を data/teacher/manifest.json に記録
+```
+
+##### AWQ が動かない場合のフォールバック（人間が決める）
+
+**`Qwen/Qwen3-4B`（bf16）に落とす。**L215 は AWQ 版を「第一候補」としており排他ではない。
+VRAM は 29GB 空いているので bf16（約8GB）でも動く。その場合は L232 の記録項目
+「量子化方式」を `none` に変え、**第一候補から外した理由**を `data/teacher/manifest.json` と
+報告書に明記する。
+
+この判断は**辞書生成を始める前に決着させる。**途中で量子化方式が変わると、
+同じ辞書の中に由来の違う表現が混ざる。
+
+#### 16b：生成の手順
+
+```bash
 # 1. op あたり10〜30種類の日本語表現を生成（L292 第1段）
 uv run --group teacher python -m scripts.teacher.generate_phrases \
     teacher.n_per_op=20 teacher.seed=0
@@ -637,14 +684,15 @@ seed からは再現できない唯一の成果物である。
 # 1. 全テスト
 uv run pytest -q
 
-# 2. 教師モデルの前提（§2.7）
+# 2. 教師モデルの実行環境（16a、§2.7）
 nvidia-smi                                    # 空きVRAMを確認（GPUは共有）
+uv sync --group teacher
 uv run --group teacher python -c "import torch; print(torch.cuda.get_device_capability())"
 #    → (12, 0)。sm_120 のビルドが入っていること
-#    → 続けて1プロンプトだけ生成し、AWQカーネルが動くことを確認してから本生成へ
+#    → 続けて1プロンプトだけ生成し、AWQカーネルが動くことを確認する
+#    → 動かなければ bf16 の Qwen/Qwen3-4B に落とすかを人間が決める（16b の前に決着させる）
 
-# 3. 日本語表現の生成と承認（人間が入る）
-uv sync --group teacher
+# 3. 日本語表現の生成と承認（16b、人間が入る）
 uv run --group teacher python -m scripts.teacher.generate_phrases teacher.n_per_op=20
 uv run python -m scripts.teacher.approve data/teacher/raw/phrases_<ts>.jsonl
 #    → op あたり承認済み15表現以上（訓練用12・言い換えテスト用3を確保）

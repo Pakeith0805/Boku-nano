@@ -100,9 +100,10 @@ uv run python -m scripts.build_ast_corpus target=30000 seed=0
 | 13 | `boku/split/manifest.py` `scripts/build_splits.py` `conf/split.yaml` | `test_split_manifest_roundtrip.py` `test_split_reproducible.py` | #12 | SPLIT §3 §6 |
 | 14 | `boku/expand/binding.py` | `test_binding_expansion.py` | #13 | EXPAND §2.1 |
 | 15 | `boku/codegen/emit.py` `styles.py` | `test_codegen_differential.py` `test_codegen_independence.py` `test_code_styles.py` | #14 | EXPAND §2.3-2.5 |
-| 16 | `scripts/teacher/generate_phrases.py` ＋ 承認CLI | 承認済み辞書が op あたり15表現以上 | — | EXPAND §2.7 §2.8 |
-| 17 | `boku/ja/render.py` `phrasebook.py` | `test_ja_order_markers.py` `test_ja_no_duplicate_instruction.py` `test_phrasebook_split.py` | #16 | EXPAND §2.6 §2.2 |
-| 18 | 解説文レコード（生成＋承認） | `test_dataset_schema.py` | #16 | EXPAND §2.9 |
+| **16a** | **教師モデルの実行環境**（`pyproject.toml` の `teacher` グループ、重みの取得） | `uv sync --group teacher` が通る／`get_device_capability()` が `(12, 0)`／**1プロンプト生成して日本語が返る**／使った版と量子化方式を `data/teacher/manifest.json` に記録 | — | EXPAND §2.7 |
+| **16b** | `scripts/teacher/generate_phrases.py` ＋ 承認CLI | 承認済み辞書が op あたり15表現以上 | 16a | EXPAND §2.7 §2.8 |
+| 17 | `boku/ja/render.py` `phrasebook.py` | `test_ja_order_markers.py` `test_ja_no_duplicate_instruction.py` `test_phrasebook_split.py` | #16b | EXPAND §2.6 §2.2 |
+| 18 | 解説文レコード（生成＋承認） | `test_dataset_schema.py` | #16a | EXPAND §2.9 |
 | 19 | `boku/verify/checks.py` `select.py` | `test_verify_checks.py` | #15 #17 | EXPAND §2.11 §2.12 |
 | 20 | `scripts/build_dataset.py` ＋ 漏洩検査 段2 | `test_leakage_stage2.py` | 全部 | EXPAND §2.12 §5 |
 
@@ -112,12 +113,18 @@ uv run python -m scripts.build_ast_corpus target=30000 seed=0
   逆順にすると同じ問題の表記違いが訓練とテストに入る
 - **#15 を #17 より前に置く。** コード生成器は参照インタプリタとの差分テストで正しさを測れるが、
   日本語生成器を機械的に検証する相手はいない。**先に測れる方を固める**
-- **#16 に人間が入る。** 教師モデルの生成と承認は自動化しない（L288-295）。
-  ここだけリードタイムが読めないので、#14 #15 と並行して着手してよい
-- **#16 の着手条件は解消済み**（2026-08-04、再起動で `nvidia-smi` が復旧）。
-  GPU は RTX 5090・32,607 MiB・compute capability 12.0（sm_120）。
-  ただし**推論スタックが sm_120 に対応しているかを、辞書生成の本番前に1プロンプトで確かめる**
-  （AWQ カーネルは世代依存。EXPAND §2.7）。GPU は他プロセスと共有している
+- **16a と 16b を分ける。** 失敗のしかたが違うためである。16a で外れるとしたら sm_120（Blackwell）
+  対応であり、辞書の中身とは無関係である。混ざっていると「AWQカーネルが動かない」のか
+  「プロンプトが悪い」のかの切り分けに手間がかかる。**16a には AWQ が動かない場合の
+  フォールバック判断（bf16 の `Qwen/Qwen3-4B` に落とすか）が挟まり、これは人間が決める**
+- **16a は #11 と並行して着手する。** 依存関係がなく、重みの取得（AWQ版で約3GB）と
+  sm_120 の確認は待ち時間が読めない。先に潰しておくと 16b がすぐ始められる。
+  2026-08-04 時点で `.venv` に torch・transformers・vLLM はいずれも入っておらず、
+  Qwen の重みも取得していない
+- **16b に人間が入る。** 教師モデルの生成と承認は自動化しない（L288-295）。
+  op あたり15表現 × 24op の承認が必要で、**ここが全工程で最も長い人手作業になる**
+- **GPU の状態**（2026-08-04）：RTX 5090・32,607 MiB・compute capability 12.0（sm_120）。
+  再起動で `nvidia-smi` の不整合は解消済み。他プロセスと共有している
 - **#20 が最後。** Hydra と MLflow を触るのはこの層だけ
 
 ### 各チャンクの手順（前半と同じ）
